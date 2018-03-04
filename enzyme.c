@@ -8,20 +8,46 @@ int workperformed;
 void *run_enzyme(void *data) {
 
 	// cast the void* pointer to thread_info_t*
-	(struct thread_info_t *)data;
-	data = (thread_info_t*)malloc(sizeof(thread_info_t));
+	thread_info_t* enzyme_data = (thread_info_t *)data;
+
 	//2. initialize the swapcount to zero
-	// info = (thread_info_t *)malloc(sizeof(thread_info_t));
-	data->swapcount = 0;
-	/*
-	3. Set the cancel type to PTHREAD_CANCEL_ASYNCHRONOUS
-	4. If the first letter of the string is a C then call pthread_cancel on this thread.
-	5. Create a while loop that only exits when please_quit is nonzero
-	6. Within this loop: if the first character of the string has an ascii value greater than the second (s[0] >s[1]) then -
-		Set workperformed=1, increment swapcount for this thread, then swap the two characters around
-		If "use_yield" is nonzero then call pthread_yield at the end of the loop.
-	7. Return a pointer to the updated structure.
-	*/
+	enzyme_data->swapcount = 0;
+
+	//3. Set the cancel type to PTHREAD_CANCEL_ASYNCHRONOUS
+	int oldtype;
+	pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, &oldtype);
+
+	//4. If the first letter of the string is a C then call pthread_cancel on this thread.
+	char* string = enzyme_data->string;
+	if (string[0] == 'C'){
+		pthread_t current_thread = pthread_self();
+		pthread_cancel(current_thread);
+	}
+
+	//5. Create a while loop that only exits when please_quit is nonzero
+	while((please_quit != NULL) && (please_quit >= 0)){
+		/* 6. Within this loop: if the first character of the string has an ascii value greater than the second (s[0] >s[1]) then -
+		Set workperformed=1, increment swapcount for this thread, then swap the two characters around*/
+
+		if (string[0] > string[1]){
+			workperformed = 1;
+			enzyme_data->swapcount++;
+			char temp = string[0];
+			string[0] = string[1];
+			string[1] = temp;
+		}
+
+		//If "use_yield" is nonzero then call pthread_yield at the end of the loop.
+		if (use_yield != NULL && use_yield != 0){
+			pthread_yield_np();
+		}
+
+	}
+
+	//7. Return a pointer to the updated structure.
+	return *enzyme_data;
+
+
 	while(0) {
 		sched_yield();
 	};
