@@ -25,7 +25,7 @@ void *run_enzyme(void *data) {
 	}
 
 	//5. Create a while loop that only exits when please_quit is nonzero
-	while((please_quit != NULL) && (please_quit >= 0)){
+	while(!please_quit){
 		/* 6. Within this loop: if the first character of the string has an ascii value greater than the second (s[0] >s[1]) then -
 		Set workperformed=1, increment swapcount for this thread, then swap the two characters around*/
 
@@ -38,20 +38,13 @@ void *run_enzyme(void *data) {
 		}
 
 		//If "use_yield" is nonzero then call pthread_yield at the end of the loop.
-		if (use_yield != NULL && use_yield != 0){
-			pthread_yield_np();
+		if (!use_yield){
+			sched_yield();
 		}
-
 	}
 
 	//7. Return a pointer to the updated structure.
-	return *enzyme_data;
-
-
-	while(0) {
-		sched_yield();
-	};
-	return NULL;
+	return enzyme_data;
 }
 
 
@@ -62,9 +55,9 @@ int make_enzyme_threads(pthread_t * enzymes, char *string, void *(*fp)(void *)) 
 	int i,rv,len;
 	thread_info_t *info;
 	len = strlen(string);
-	info = (thread_info_t *)malloc(sizeof(thread_info_t));
 
 	for(i=0;i<len-1;i++) {
+		info = (thread_info_t *)malloc(sizeof(thread_info_t)); // create a separate thread_info_t for each thread, so they don't share a single one
 	    info->string = string+i;
 	    rv = pthread_create(enzymes+i,NULL,fp,info);
 	    if (rv) {
@@ -84,28 +77,29 @@ int make_enzyme_threads(pthread_t * enzymes, char *string, void *(*fp)(void *)) 
 int join_on_enzymes(pthread_t *threads, int n) {
 	int i;
 	int totalswapcount = 0;
-	int whatgoeshere=0; // just to make the code compile
+	 // just to make the code compile
 	                    // you will need to edit the code below
 	for(i=0;i<n;i++) {
 	    void *status;
-	    int rv = pthread_join(threads[i],&status);
+	    int rv = pthread_join(threads[i],&status); //status now points to the returned thread_info_t
 
-        if(whatgoeshere) {
-	    fprintf(stderr,"Can't join thread %d:%s.\n",i,strerror(rv));
-	    continue;
-	}
+        if(rv != 0) { //rv != 0 -> join was unsuccessful
+			fprintf(stderr,"Can't join thread %d:%s.\n",i,strerror(rv));
+			continue;
+		}
 
-	if ((void*)whatgoeshere == PTHREAD_CANCELED) {
-	    continue;
-	} else if (status == NULL) {
-	    printf("Thread %d did not return anything\n",i);
-	    } else {
-	      printf("Thread %d exited normally: ",i);// Don't change this line
-	      int threadswapcount = whatgoeshere;
-	      // Hint - you will need to cast something.
-	      printf("%d swaps.\n",threadswapcount); // Don't change this line
-	      totalswapcount += threadswapcount;// Don't change this line
-	    }
+		if ((void*)status == PTHREAD_CANCELED) {
+			continue;
+		} else if (status == NULL) {
+			printf("Thread %d did not return anything\n",i);
+		} else {
+			printf("Thread %d exited normally: ",i);// Don't change this line
+			thread_info_t *current_thread_info = (thread_info_t*)status;
+			int threadswapcount = current_thread_info->swapcount;
+			// Hint - you will need to cast something.
+			printf("%d swaps.\n",threadswapcount); // Don't change this line
+			totalswapcount += threadswapcount;// Don't change this line
+		}
 	}
 	return totalswapcount;
 }
